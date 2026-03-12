@@ -61,12 +61,33 @@ function initParams() {
 export default function ScreenPrintCalculator() {
   const [increase, setIncrease] = useState(15);
   const [params, setParams] = useState(initParams);
-  const [quickScreens, setQuickScreens] = useState(1);
+  const [locations, setLocations] = useState([{ id: 1, screens: 1, label: "Front" }]);
   const [quickQty, setQuickQty] = useState(100);
   const [showComparison, setShowComparison] = useState(false);
   const [activeTab, setActiveTab] = useState("card");
   const [includeFoldBag, setIncludeFoldBag] = useState(false);
   const [includeFleece, setIncludeFleece] = useState(false);
+  const [includeSticker, setIncludeSticker] = useState(false);
+  const [includeSleeve, setIncludeSleeve] = useState(false);
+  const [includeUnbag, setIncludeUnbag] = useState(false);
+  const [pantoneColors, setPantoneColors] = useState(0);
+
+  const LOCATION_LABELS = ["Front", "Back", "Sleeve", "Other"];
+
+  const addLocation = () => {
+    if (locations.length >= 4) return;
+    const nextLabel = LOCATION_LABELS[locations.length] || `Loc ${locations.length + 1}`;
+    setLocations((prev) => [...prev, { id: Date.now(), screens: 1, label: nextLabel }]);
+  };
+
+  const removeLocation = (id) => {
+    if (locations.length <= 1) return;
+    setLocations((prev) => prev.filter((l) => l.id !== id));
+  };
+
+  const updateLocationScreens = (id, screens) => {
+    setLocations((prev) => prev.map((l) => (l.id === id ? { ...l, screens } : l)));
+  };
 
   const updateParam = (idx, field, value) => {
     setParams((prev) => {
@@ -85,21 +106,42 @@ export default function ScreenPrintCalculator() {
     });
   }, [params, increase]);
 
-  const quickPrice = useMemo(() => {
-    const p = params[quickScreens - 1];
-    if (!p || quickQty < 1) return null;
-    return calcPrice(p.setup, p.variable, quickQty, increase);
-  }, [params, quickScreens, quickQty, increase]);
-
   const quickBreakdown = useMemo(() => {
-    if (quickPrice === null) return null;
-    const screenFees = 27.0 * quickScreens;
-    const perUnitAddOns = (includeFoldBag ? 0.45 : 0) + (includeFleece ? 0.50 : 0);
-    const allInPerUnit = quickPrice + perUnitAddOns;
+    if (quickQty < 1) return null;
+    let totalPrintPerUnit = 0;
+    let totalScreenFees = 0;
+    const locationDetails = [];
+    for (const loc of locations) {
+      const p = params[loc.screens - 1];
+      if (!p) return null;
+      const price = calcPrice(p.setup, p.variable, quickQty, increase);
+      totalPrintPerUnit += price;
+      totalScreenFees += 27.0 * loc.screens;
+      locationDetails.push({ label: loc.label, screens: loc.screens, price });
+    }
+    const perUnitAddOns =
+      (includeFoldBag ? 0.45 : 0) +
+      (includeFleece ? 0.50 : 0) +
+      (includeSticker ? 0.25 : 0) +
+      (includeSleeve ? 0.25 * locations.length : 0) +
+      (includeUnbag ? 0.15 : 0);
+    const pantoneFees = pantoneColors * 15.0;
+    const allInPerUnit = totalPrintPerUnit + perUnitAddOns;
     const printSubtotal = allInPerUnit * quickQty;
-    const orderTotal = printSubtotal + screenFees;
-    return { screenFees, perUnitAddOns, allInPerUnit, printSubtotal, orderTotal };
-  }, [quickPrice, quickScreens, quickQty, includeFoldBag, includeFleece]);
+    const orderTotal = printSubtotal + totalScreenFees + pantoneFees;
+    const totalScreens = locations.reduce((sum, l) => sum + l.screens, 0);
+    return {
+      totalPrintPerUnit,
+      totalScreenFees,
+      pantoneFees,
+      perUnitAddOns,
+      allInPerUnit,
+      printSubtotal,
+      orderTotal,
+      totalScreens,
+      locationDetails,
+    };
+  }, [locations, params, quickQty, increase, includeFoldBag, includeFleece, includeSticker, includeSleeve, includeUnbag, pantoneColors]);
 
   return (
     <>
@@ -133,33 +175,59 @@ export default function ScreenPrintCalculator() {
       {/* Quick Calculator */}
       <div className="panel p-4 mb-4">
         <h2 className="section-label mb-3">Quick Price Check</h2>
-        <div className="flex flex-wrap items-end gap-5">
-          <div>
-            <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Screens (Colors)</label>
-            <div className="flex gap-1.5">
-              {[1, 2, 3, 4, 5, 6].map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setQuickScreens(s)}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: "var(--radius-sm)",
-                    fontSize: 13,
-                    fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    border: quickScreens === s ? `2px solid ${SCREEN_COLORS[s - 1].color}` : "1px solid var(--border-medium)",
-                    background: quickScreens === s ? "var(--bg-deep)" : "var(--bg-surface)",
-                    color: quickScreens === s ? SCREEN_COLORS[s - 1].color : "var(--text-muted)",
-                    cursor: "pointer",
-                    transition: "all 0.15s ease",
-                  }}
-                >
-                  {s}
-                </button>
-              ))}
+
+        {/* Print Locations */}
+        <div className="flex flex-wrap items-end gap-5 mb-3">
+          {locations.map((loc) => (
+            <div key={loc.id}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span style={{ fontSize: 12, color: "var(--text-muted)", fontWeight: 500 }}>{loc.label}</span>
+                {locations.length > 1 && (
+                  <button
+                    onClick={() => removeLocation(loc.id)}
+                    style={{
+                      width: 16, height: 16, borderRadius: "50%", border: "1px solid var(--border-medium)",
+                      background: "var(--bg-surface)", color: "var(--text-muted)", fontSize: 11, lineHeight: 1,
+                      cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5, 6].map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => updateLocationScreens(loc.id, s)}
+                    style={{
+                      width: 32, height: 32, borderRadius: "var(--radius-sm)", fontSize: 12,
+                      fontWeight: 700, fontFamily: "'JetBrains Mono', monospace",
+                      border: loc.screens === s ? `2px solid ${SCREEN_COLORS[s - 1].color}` : "1px solid var(--border-medium)",
+                      background: loc.screens === s ? "var(--bg-deep)" : "var(--bg-surface)",
+                      color: loc.screens === s ? SCREEN_COLORS[s - 1].color : "var(--text-muted)",
+                      cursor: "pointer", transition: "all 0.15s ease",
+                    }}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          ))}
+          {locations.length < 4 && (
+            <button
+              onClick={addLocation}
+              style={{
+                padding: "6px 12px", fontSize: 12, fontWeight: 600, borderRadius: "var(--radius-sm)",
+                border: "1px dashed var(--border-medium)", background: "transparent",
+                color: "var(--text-muted)", cursor: "pointer", alignSelf: "flex-end",
+              }}
+            >
+              + Location
+            </button>
+          )}
+          <div style={{ width: 1, height: 32, background: "var(--border-subtle)", alignSelf: "flex-end" }} />
           <div>
             <label style={{ fontSize: 12, color: "var(--text-muted)", display: "block", marginBottom: 6 }}>Quantity</label>
             <input
@@ -171,53 +239,67 @@ export default function ScreenPrintCalculator() {
               style={{ width: 100, padding: "7px 10px", textAlign: "center", fontSize: 14, fontWeight: 600 }}
             />
           </div>
-          <div className="flex-1" />
-          <div className="flex items-center gap-4" style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>
-              Screen Fee: {formatPrice(27.0 * quickScreens)}
-            </span>
-            <label className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={includeFoldBag}
-                onChange={(e) => setIncludeFoldBag(e.target.checked)}
-                className="rf-check"
-              />
-              Fold & Bag (+$0.45/ea)
-            </label>
-            <label className="flex items-center gap-1.5 cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={includeFleece}
-                onChange={(e) => setIncludeFleece(e.target.checked)}
-                className="rf-check"
-              />
-              Fleece (+$0.50/ea)
-            </label>
-          </div>
         </div>
+
+        {/* Fee Toggles */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2" style={{ fontSize: 12, color: "var(--text-muted)" }}>
+          <span style={{ fontWeight: 600, color: "var(--text-secondary)" }}>
+            Screens: {locations.reduce((s, l) => s + l.screens, 0)} total ({formatPrice(27.0 * locations.reduce((s, l) => s + l.screens, 0))})
+          </span>
+          <span style={{ color: "var(--border-medium)" }}>|</span>
+          {[
+            { label: "Fold & Bag (+$0.45)", checked: includeFoldBag, set: setIncludeFoldBag },
+            { label: "Fleece (+$0.50)", checked: includeFleece, set: setIncludeFleece },
+            { label: "Sticker (+$0.25)", checked: includeSticker, set: setIncludeSticker },
+            { label: "Sleeve/Pocket (+$0.25)", checked: includeSleeve, set: setIncludeSleeve },
+            { label: "Unbag/Detag (+$0.15)", checked: includeUnbag, set: setIncludeUnbag },
+          ].map(({ label, checked, set }) => (
+            <label key={label} className="flex items-center gap-1.5 cursor-pointer select-none">
+              <input type="checkbox" checked={checked} onChange={(e) => set(e.target.checked)} className="rf-check" />
+              {label}
+            </label>
+          ))}
+          <span style={{ color: "var(--border-medium)" }}>|</span>
+          <label className="flex items-center gap-1.5 select-none">
+            <span>Pantone</span>
+            <input
+              type="number"
+              min={0}
+              max={20}
+              value={pantoneColors}
+              onChange={(e) => setPantoneColors(Math.max(0, Number(e.target.value)))}
+              className="field-editable"
+              style={{ width: 48, padding: "3px 6px", textAlign: "center", fontSize: 12, fontWeight: 600 }}
+            />
+            <span style={{ color: "var(--text-muted)" }}>× $15</span>
+          </label>
+        </div>
+
+        {/* Results */}
         {quickBreakdown !== null && (
           <div className="flex gap-6 items-end mt-4 flex-wrap">
             <div className="panel-inset p-3 text-right">
-              <div className="kpi-label mb-1">Per Unit</div>
+              <div className="kpi-label mb-1">Per Unit (all locations)</div>
               <div className="kpi-value" style={{ color: "var(--ji-green)" }}>
                 {formatPrice(quickBreakdown.allInPerUnit)}
               </div>
-              {quickBreakdown.perUnitAddOns > 0 && (
-                <div className="tnum" style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
-                  {formatPrice(quickPrice)} print
-                  {includeFoldBag && " +$0.45 f&b"}
-                  {includeFleece && " +$0.50 fleece"}
-                </div>
-              )}
+              <div className="tnum" style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
+                {quickBreakdown.locationDetails.map((d, i) => (
+                  <span key={i}>{i > 0 && " + "}{formatPrice(d.price)} {d.label.toLowerCase()}</span>
+                ))}
+                {quickBreakdown.perUnitAddOns > 0 && (
+                  <span> + {formatPrice(quickBreakdown.perUnitAddOns)} fees</span>
+                )}
+              </div>
             </div>
             <div className="text-right">
               <div className="kpi-label">Screen Fees</div>
               <div className="tnum" style={{ fontSize: 22, fontWeight: 600, color: "var(--text-primary)" }}>
-                {formatPrice(quickBreakdown.screenFees)}
+                {formatPrice(quickBreakdown.totalScreenFees)}
               </div>
               <div className="tnum" style={{ fontSize: 11, color: "var(--text-muted)", marginTop: 2 }}>
-                $27 × {quickScreens} screen{quickScreens > 1 ? "s" : ""}
+                $27 × {quickBreakdown.totalScreens} screen{quickBreakdown.totalScreens > 1 ? "s" : ""}
+                {quickBreakdown.pantoneFees > 0 && <><br />+ {formatPrice(quickBreakdown.pantoneFees)} Pantone</>}
               </div>
             </div>
             <div className="text-right">
@@ -230,13 +312,13 @@ export default function ScreenPrintCalculator() {
               </div>
             </div>
             <div className="text-right">
-              <div className="kpi-label">Setup + Variable</div>
+              <div className="kpi-label">Per-Location Breakdown</div>
               <div className="tnum" style={{ fontSize: 12, color: "var(--text-muted)", lineHeight: 1.6 }}>
-                ${params[quickScreens - 1].setup.toFixed(2)} / {quickQty} ={" "}
-                <span style={{ color: "var(--text-secondary)" }}>
-                  ${(params[quickScreens - 1].setup / quickQty).toFixed(4)}
-                </span>
-                <br />+ ${params[quickScreens - 1].variable.toFixed(4)} variable
+                {quickBreakdown.locationDetails.map((d, i) => (
+                  <div key={i}>
+                    {d.label}: {formatPrice(d.price)}/ea × {d.screens} screen{d.screens > 1 ? "s" : ""}
+                  </div>
+                ))}
               </div>
             </div>
           </div>
