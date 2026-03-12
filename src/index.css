@@ -308,6 +308,17 @@ input[type="checkbox"].rf-check:checked::after {
 }
 
 /* ── Allocation bar track ── */
+.capacity-bar-preview {
+  background: repeating-linear-gradient(
+    -45deg,
+    var(--client-blue),
+    var(--client-blue) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+  opacity: 0.5;
+}
+
 .alloc-track {
   background: var(--bg-deep);
   border: 1px solid var(--border-subtle);
@@ -410,6 +421,19 @@ select.rf-select:focus {
     gap: 24px;
     flex-wrap: wrap;
     align-items: flex-end;
+  }
+}
+
+/* ── Shop Economics dashboard grid ── */
+.econ-dashboard-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 600px) {
+  .econ-dashboard-grid {
+    grid-template-columns: 1fr;
   }
 }
 

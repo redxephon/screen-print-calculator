@@ -2,7 +2,6 @@ import { useState, useMemo } from "react";
 import { calcPressTime, calcComplexityCostAdder, calcJobScore, findMinProfitableQty } from "./jobAnalysis";
 import ProfitAlerts from "./ProfitAlerts";
 import ProfitabilityAnalysis from "./ProfitabilityAnalysis";
-import CapacityPlanner from "./CapacityPlanner";
 
 const DEFAULT_PARAMS = [
   { screens: 1, setup: 44.17, variable: 0.8421, minQty: 12 },
@@ -62,7 +61,7 @@ function initParams() {
   return DEFAULT_PARAMS.map((p) => ({ ...p }));
 }
 
-export default function ScreenPrintCalculator() {
+export default function ScreenPrintCalculator({ shopEconomics }) {
   const [increase, setIncrease] = useState(15);
   const [params, setParams] = useState(initParams);
   const [locations, setLocations] = useState([{ id: 1, screens: 1, label: "Front" }]);
@@ -87,12 +86,6 @@ export default function ScreenPrintCalculator() {
   // Profitability
   const [targetHourlyRate, setTargetHourlyRate] = useState(75);
   const [targetProfit, setTargetProfit] = useState(500);
-  // Capacity
-  const [pressHoursPerWeek, setPressHoursPerWeek] = useState(40);
-  const [hoursBooked, setHoursBooked] = useState(0);
-  const [revenueBooked, setRevenueBooked] = useState(0);
-  const [laborRate, setLaborRate] = useState(15);
-  const [operators, setOperators] = useState(1);
 
   const LOCATION_LABELS = ["Front", "Back", "Sleeve", "Other"];
 
@@ -538,7 +531,6 @@ export default function ScreenPrintCalculator() {
           { id: "card", label: "Rate Card" },
           { id: "params", label: "Parameters" },
           { id: "profit", label: "Profitability" },
-          { id: "capacity", label: "Capacity" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -650,18 +642,6 @@ export default function ScreenPrintCalculator() {
           pantoneColors={pantoneColors} qtyTiers={QTY_TIERS}
           targetProfit={targetProfit} setTargetProfit={setTargetProfit}
           targetHourlyRate={targetHourlyRate}
-        />
-      )}
-
-      {/* Capacity Tab */}
-      {activeTab === "capacity" && (
-        <CapacityPlanner
-          pressHoursPerWeek={pressHoursPerWeek} setPressHoursPerWeek={setPressHoursPerWeek}
-          hoursBooked={hoursBooked} setHoursBooked={setHoursBooked}
-          revenueBooked={revenueBooked} setRevenueBooked={setRevenueBooked}
-          targetHourlyRate={targetHourlyRate} setTargetHourlyRate={setTargetHourlyRate}
-          laborRate={laborRate} setLaborRate={setLaborRate}
-          operators={operators} setOperators={setOperators}
         />
       )}
 

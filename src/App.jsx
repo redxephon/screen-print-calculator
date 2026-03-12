@@ -1,14 +1,64 @@
 import { useState } from "react";
 import ScreenPrintCalculator from "./ScreenPrintCalculator";
 import WebstoreCalculator from "./WebstoreCalculator";
+import ShopEconomics from "./ShopEconomics";
 
 const MODES = [
   { id: "screenprint", label: "Screen Print" },
+  { id: "embroidery", label: "Embroidery" },
+  { id: "dtf", label: "DTF" },
   { id: "webstore", label: "Webstore" },
+  { id: "economics", label: "Shop Economics" },
 ];
 
 export default function App() {
   const [mode, setMode] = useState("screenprint");
+
+  // Shop Economics state — shared across all calculators
+  const [costItems, setCostItems] = useState([
+    { id: 1, label: "Rent/Lease/Mortgage", amount: 5000 },
+    { id: 2, label: "Equipment Leases", amount: 2647.12 },
+    { id: 3, label: "FXV", amount: 463.99 },
+    { id: 4, label: "Insurance", amount: 160 },
+    { id: 5, label: "Google Suite, DropBox", amount: 100 },
+    { id: 6, label: "Utilities", amount: 1150 },
+    { id: 7, label: "GraphX + Printavo", amount: 2350 },
+    { id: 8, label: "Payroll", amount: 32000 },
+    { id: 9, label: "Phone, Internet", amount: 250 },
+    { id: 10, label: "Marketing", amount: 725 },
+  ]);
+  const [impressionsPerHour, setImpressionsPerHour] = useState(500);
+  const [utilization, setUtilization] = useState(60);
+  const [hoursPerDay, setHoursPerDay] = useState(8);
+  const [numPresses, setNumPresses] = useState(1);
+  const [daysPerWeek, setDaysPerWeek] = useState(5);
+  const [adminRate, setAdminRate] = useState(40);
+  const [artworkRate, setArtworkRate] = useState(60);
+  const [screensRate, setScreensRate] = useState(40);
+  const [adminMinutes, setAdminMinutes] = useState(30);
+  const [artworkMinutes, setArtworkMinutes] = useState(45);
+  const [screenMinutes, setScreenMinutes] = useState(25);
+  const [targetMargin, setTargetMargin] = useState(45);
+  const [hoursBooked, setHoursBooked] = useState(0);
+  const [revenueBooked, setRevenueBooked] = useState(0);
+
+  const shopEconomics = {
+    costItems, setCostItems,
+    impressionsPerHour, setImpressionsPerHour,
+    utilization, setUtilization,
+    hoursPerDay, setHoursPerDay,
+    numPresses, setNumPresses,
+    daysPerWeek, setDaysPerWeek,
+    adminRate, setAdminRate,
+    artworkRate, setArtworkRate,
+    screensRate, setScreensRate,
+    adminMinutes, setAdminMinutes,
+    artworkMinutes, setArtworkMinutes,
+    screenMinutes, setScreenMinutes,
+    targetMargin, setTargetMargin,
+    hoursBooked, setHoursBooked,
+    revenueBooked, setRevenueBooked,
+  };
 
   return (
     <div className="min-h-screen" style={{ background: "var(--bg-deep)" }}>
@@ -26,7 +76,7 @@ export default function App() {
           </div>
 
           {/* Mode segmented control */}
-          <div className="flex" style={{ background: "var(--bg-deep)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", padding: 2 }}>
+          <div className="flex flex-wrap" style={{ background: "var(--bg-deep)", borderRadius: "var(--radius-sm)", border: "1px solid var(--border-subtle)", padding: 2 }}>
             {MODES.map((m) => (
               <button
                 key={m.id}
@@ -54,8 +104,27 @@ export default function App() {
 
       {/* Content */}
       <div className="max-w-[1440px] mx-auto p-4">
-        {mode === "screenprint" && <ScreenPrintCalculator />}
+        {mode === "screenprint" && <ScreenPrintCalculator shopEconomics={shopEconomics} />}
         {mode === "webstore" && <WebstoreCalculator />}
+        {mode === "economics" && (
+          <ShopEconomics
+            {...shopEconomics}
+            pressTime={null}
+            quickBreakdown={null}
+          />
+        )}
+        {mode === "embroidery" && (
+          <div className="panel p-4 mb-4">
+            <h2 className="section-label mb-3">Embroidery Calculator</h2>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Coming soon — stitch count pricing, thread colors, hooping, digitizing fees.</p>
+          </div>
+        )}
+        {mode === "dtf" && (
+          <div className="panel p-4 mb-4">
+            <h2 className="section-label mb-3">DTF Calculator</h2>
+            <p style={{ fontSize: 13, color: "var(--text-muted)" }}>Coming soon — transfer sizing, gang sheet optimization, film + ink costing.</p>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="text-center mt-6 pb-4" style={{ fontSize: 11, color: "var(--text-muted)", fontFamily: "'DM Sans', sans-serif" }}>
